@@ -12,6 +12,13 @@ npm test         # enhetstester
 npm run build    # produktionsbygge till dist/
 ```
 
+## Publicering
+
+Varje push till `main` testas, byggs och publiceras på GitHub Pages via
+`.github/workflows/deploy.yml`. Pull requests testas och byggs men publiceras
+inte. Pages måste vara påslaget en gång i repots inställningar:
+**Settings → Pages → Source: GitHub Actions**.
+
 ## Så fungerar det
 
 1. **Fyll i kuben** – håll kuben med vit mitt uppåt och grön mitt mot dig, välj
