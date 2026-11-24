@@ -3,6 +3,7 @@ import { applyMoves, FACES, NORMALS, randomScramble, SOLVED, type Face } from '.
 import { validate } from '../cube/validate';
 import { assemble } from './assemble';
 import type { RGB } from './color';
+import type { Sample } from './sample';
 import { faceletIndicesForView, isValidCorner, quadMapper, regularHexagon, stickerPoints } from './geometry';
 
 function seeded(seed: number) {
@@ -32,11 +33,12 @@ const VIEWS: Face[][] = FACES.flatMap((a) =>
 const opposite: Record<Face, Face> = { U: 'D', D: 'U', R: 'L', L: 'R', F: 'B', B: 'F' };
 
 /** Skapa "fotade" färger för en vy med belysning (ljusstyrka + färgstick) och brus. */
-function photograph(state: Face[], view: Face[], rand: () => number, light: RGB): RGB[] {
+function photograph(state: Face[], view: Face[], rand: () => number, light: RGB): Sample[] {
   const [t, l, r] = view.map((f) => NORMALS[f]);
   return faceletIndicesForView(t, l, r).map((idx) => {
     const base = PHOTO_RGB[state[idx]];
-    return base.map((c, k) => Math.max(0, Math.min(255, c * light[k] + (rand() - 0.5) * 30))) as RGB;
+    const rgb = base.map((c, k) => Math.max(0, Math.min(255, c * light[k] + (rand() - 0.5) * 30))) as RGB;
+    return { rgb, spread: 4 + rand() * 8 };
   });
 }
 
@@ -83,6 +85,7 @@ describe('avläsning', () => {
       [0.75, 0.75, 0.8], // mörkt
       [0.9, 0.95, 1.05], // kallt
     ];
+    let uncertainTotal = 0;
     for (let n = 0; n < 40; n++) {
       const state = applyMoves(SOLVED, randomScramble(25, rand));
       const v1 = VIEWS[Math.floor(rand() * VIEWS.length)];
@@ -96,7 +99,49 @@ describe('avläsning', () => {
         expect(result.views).toEqual([v1, v2]);
         expect(result.facelets).toEqual(state);
         expect(validate(result.facelets).ok).toBe(true);
+        uncertainTotal += result.uncertain.length;
       }
+    }
+    // Vanliga bilder ska sällan ge falsklarm.
+    expect(uncertainTotal / 40).toBeLessThan(1);
+  });
+
+  it('markerar rutor med reflex eller tvetydig färg som osäkra', () => {
+    const rand = seeded(5);
+    const state = applyMoves(SOLVED, randomScramble(25, rand));
+    const v1: Face[] = ['U', 'F', 'R'];
+    const v2: Face[] = ['D', 'L', 'B'];
+    const p1 = photograph(state, v1, rand, [1, 1, 1]);
+    const p2 = photograph(state, v2, rand, [1, 1, 1]);
+    const ids1 = faceletIndicesForView(NORMALS.U, NORMALS.F, NORMALS.R);
+    p1[0] = { ...p1[0], spread: 60 }; // ojämn färg
+    p1[1] = { rgb: [222, 75, 35], spread: 6 }; // mitt emellan rött och orange
+    const result = assemble(p1, p2);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.uncertain).toContain(ids1[0]);
+      expect(result.uncertain).toContain(ids1[1]);
+    }
+  });
+
+  it('en reflex knuffar inte ut en riktig ruta: reflexrutan får den färg som blir över', () => {
+    const rand = seeded(8);
+    for (let n = 0; n < 20; n++) {
+      const state = applyMoves(SOLVED, randomScramble(25, rand));
+      const p1 = photograph(state, ['U', 'F', 'R'], rand, [1, 1, 1]);
+      const p2 = photograph(state, ['D', 'L', 'B'], rand, [1, 1, 1]);
+      // Tre helt vita reflexer på icke-mittrutor.
+      for (const k of [0, 10, 20]) p1[k] = { rgb: [255, 255, 255], spread: 3 };
+      const result = assemble(p1, p2);
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+      const ids = faceletIndicesForView(NORMALS.U, NORMALS.F, NORMALS.R);
+      for (const k of [0, 10, 20]) expect(result.uncertain).toContain(ids[k]);
+      // Fel får bara uppstå på reflexrutorna själva (som är markerade) –
+      // inga andra rutor får knuffas ut.
+      const glare = [0, 10, 20].map((k) => ids[k]);
+      const wrong = result.facelets.map((f, i) => (f === state[i] ? -1 : i)).filter((i) => i >= 0);
+      for (const w of wrong) expect(glare).toContain(w);
     }
   });
 });

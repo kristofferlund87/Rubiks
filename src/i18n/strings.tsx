@@ -34,6 +34,14 @@ const en = {
   cancel: 'Cancel',
   scanError:
     'Couldn’t tell which faces are which from the center colors. Make sure the two photos show opposite corners, then adjust the outlines or retake the photos.',
+  photoIssue: {
+    dark: '⚠️ The photo looks dark. Turn on more light for a better result.',
+    glare: '⚠️ Some squares are overexposed – probably glare. Tilt the cube slightly or avoid direct light.',
+    uneven:
+      '⚠️ Several squares (red dots) have uneven color – glare, shadow or the outline is off. Adjust the outline or retake the photo.',
+  },
+  scanUncertain: (n: number) =>
+    `⚠️ The app is unsure about ${n} ${n === 1 ? 'square' : 'squares'} (marked with ?). Check ${n === 1 ? 'it' : 'them'} against your cube and tap to fix if needed.`,
   scanDone: 'Check that the colors match your cube and fix any mistakes by tapping the squares. Then press Solve.',
 
   step1Title: '1. Enter the colors',
@@ -162,6 +170,14 @@ const sv: Strings = {
   cancel: 'Avbryt',
   scanError:
     'Kunde inte avgöra vilken sida som är vilken från mittfärgerna. Kontrollera att bilderna visar motsatta hörn, och justera ramarna eller ta om bilderna.',
+  photoIssue: {
+    dark: '⚠️ Bilden ser mörk ut. Tänd mer ljus för bättre resultat.',
+    glare: '⚠️ Några rutor är överexponerade – troligen reflexer. Vinkla kuben lite eller undvik direkt ljus.',
+    uneven:
+      '⚠️ Flera rutor (röda prickar) har ojämn färg – reflex, skugga eller så ligger ramen fel. Justera ramen eller ta om bilden.',
+  },
+  scanUncertain: (n) =>
+    `⚠️ Appen är osäker på ${n} ${n === 1 ? 'ruta' : 'rutor'} (markerade med ?). Jämför med din kub och tryck för att rätta om det behövs.`,
   scanDone: 'Kontrollera att färgerna stämmer med din kub och rätta eventuella fel genom att trycka på rutorna. Tryck sedan på Lös.',
 
   step1Title: '1. Fyll i färgerna',

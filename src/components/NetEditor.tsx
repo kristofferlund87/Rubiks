@@ -5,6 +5,8 @@ import { useI18n } from '../i18n';
 interface Props {
   state: Facelets;
   highlight?: Set<number>;
+  /** Rutor som skanningen är osäker på. */
+  uncertain?: Set<number>;
   onPaint(index: number): void;
 }
 
@@ -13,7 +15,7 @@ interface Props {
  * rutorna. Med finger målar bara ett tryck, så att man kan scrolla sidan
  * över kuben utan att råka måla.
  */
-export function NetEditor({ state, highlight, onPaint }: Props) {
+export function NetEditor({ state, highlight, uncertain, onPaint }: Props) {
   const { t } = useI18n();
   const painting = useRef(false);
   const last = useRef<number | null>(null);
@@ -70,7 +72,10 @@ export function NetEditor({ state, highlight, onPaint }: Props) {
                 key={index}
                 data-index={index}
                 className={
-                  'net-cell' + (center ? ' center' : '') + (highlight?.has(index) ? ' error' : '')
+                  'net-cell' +
+                  (center ? ' center' : '') +
+                  (highlight?.has(index) ? ' error' : '') +
+                  (uncertain?.has(index) ? ' uncertain' : '')
                 }
                 style={{ background: s ? COLORS[s].hex : UNKNOWN_HEX }}
                 aria-label={t.stickerLabel(t.faces[face], i + 1, s ? t.colors[s] : null)}

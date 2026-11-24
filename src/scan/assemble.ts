@@ -5,13 +5,26 @@
  * är mittrutorna.
  */
 import { FACES, NORMALS, type Face, type Facelets } from '../cube/model';
-import { labDistance, NOMINAL, permutations, rgbToLab, type Lab, type RGB } from './color';
+import { labDistance, NOMINAL, permutations, rgbToLab, type Lab } from './color';
+import { isBlownOut, SPREAD_LIMIT, type Sample } from './sample';
 import { faceletIndicesForView, isValidCorner, SLOTS } from './geometry';
 
 export const CENTER_SAMPLES = [4, 13, 22];
 
+/**
+ * En ruta räknas som osäker om dess färg ligger nästan lika nära en annan
+ * färg som den tilldelade (avståndskvot över denna gräns).
+ */
+export const AMBIGUITY_LIMIT = 0.6;
+
 export type AssembleResult =
-  | { ok: true; facelets: Facelets; views: [Face[], Face[]] }
+  | {
+      ok: true;
+      facelets: Facelets;
+      views: [Face[], Face[]];
+      /** Facelet-index för rutor som appen är osäker på. */
+      uncertain: number[];
+    }
   | { ok: false; error: 'centers' };
 
 /**
@@ -31,8 +44,14 @@ function identifyCenters(centers: Lab[]): [Face[], Face[]] | null {
   return best ? [best.faces.slice(0, 3), best.faces.slice(3)] : null;
 }
 
-export function assemble(photo1: RGB[], photo2: RGB[]): AssembleResult {
-  const labs = [...photo1, ...photo2].map(rgbToLab);
+/** Reflex (överexponerat) eller ojämn färg i provet. */
+export function isUnreliable(s: Sample): boolean {
+  return s.spread > SPREAD_LIMIT || isBlownOut(s.rgb);
+}
+
+export function assemble(photo1: Sample[], photo2: Sample[]): AssembleResult {
+  const samples = [...photo1, ...photo2];
+  const labs = samples.map((s) => rgbToLab(s.rgb));
   const centerIdx = [...CENTER_SAMPLES, ...CENTER_SAMPLES.map((i) => i + 27)];
   const views = identifyCenters(centerIdx.map((i) => labs[i]));
   if (!views) return { ok: false, error: 'centers' };
@@ -50,11 +69,13 @@ export function assemble(photo1: RGB[], photo2: RGB[]): AssembleResult {
   centerFace.forEach((f, i) => (refs[f] = labs[i]));
 
   const others = labs.map((_, i) => i).filter((i) => !centerFace.has(i));
+  // Opålitliga prov (reflex/ojämn färg) får sin färg sist och påverkar inte referenserna.
+  const unreliable = new Set(others.filter((i) => isUnreliable(samples[i])));
   let assignment = new Map<number, Face>();
   for (let iter = 0; iter < 5; iter++) {
     const pairs: { i: number; f: Face; d: number }[] = [];
     for (const i of others) for (const f of FACES) pairs.push({ i, f, d: labDistance(labs[i], refs[f]) });
-    pairs.sort((a, b) => a.d - b.d);
+    pairs.sort((a, b) => Number(unreliable.has(a.i)) - Number(unreliable.has(b.i)) || a.d - b.d);
     const next = new Map<number, Face>();
     const used = Object.fromEntries(FACES.map((f) => [f, 0])) as Record<Face, number>;
     for (const { i, f } of pairs) {
@@ -64,7 +85,9 @@ export function assemble(photo1: RGB[], photo2: RGB[]): AssembleResult {
     }
     assignment = next;
     for (const f of FACES) {
-      const members = [...assignment].filter(([, g]) => g === f).map(([i]) => labs[i]);
+      const members = [...assignment]
+        .filter(([i, g]) => g === f && !unreliable.has(i))
+        .map(([i]) => labs[i]);
       [...centerFace].filter(([, g]) => g === f).forEach(([i]) => members.push(labs[i]));
       refs[f] = [0, 1, 2].map((k) => members.reduce((s, m) => s + m[k], 0) / members.length) as Lab;
     }
@@ -74,5 +97,17 @@ export function assemble(photo1: RGB[], photo2: RGB[]): AssembleResult {
   labs.forEach((_, i) => {
     facelets[indices[i]] = centerFace.get(i) ?? assignment.get(i) ?? null;
   });
-  return { ok: true, facelets, views };
+
+  // Osäkerhet: ojämnt prov (reflex/kant), eller nästan lika nära en annan färg.
+  const uncertain = others
+    .filter((i) => {
+      if (unreliable.has(i)) return true;
+      const own = assignment.get(i)!;
+      const dOwn = labDistance(labs[i], refs[own]);
+      const dOther = Math.min(...FACES.filter((f) => f !== own).map((f) => labDistance(labs[i], refs[f])));
+      return dOwn / Math.max(dOther, 1e-6) > AMBIGUITY_LIMIT;
+    })
+    .map((i) => indices[i]);
+
+  return { ok: true, facelets, views, uncertain };
 }
