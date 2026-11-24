@@ -20,28 +20,19 @@ export type Facelets = Sticker[];
 
 export const SOLVED: Face[] = FACES.flatMap((f) => Array<Face>(9).fill(f));
 
-export const COLORS: Record<Face, { hex: string; name: string }> = {
-  U: { hex: '#f4f4f4', name: 'Vit' },
-  R: { hex: '#d0213b', name: 'Röd' },
-  F: { hex: '#0aa34f', name: 'Grön' },
-  D: { hex: '#ffd31a', name: 'Gul' },
-  L: { hex: '#ff6a13', name: 'Orange' },
-  B: { hex: '#1663d6', name: 'Blå' },
+export const COLORS: Record<Face, { hex: string }> = {
+  U: { hex: '#f4f4f4' }, // vit
+  R: { hex: '#d0213b' }, // röd
+  F: { hex: '#0aa34f' }, // grön
+  D: { hex: '#ffd31a' }, // gul
+  L: { hex: '#ff6a13' }, // orange
+  B: { hex: '#1663d6' }, // blå
 };
 export const UNKNOWN_HEX = '#5b6270';
 
-export const FACE_NAMES: Record<Face, string> = {
-  U: 'Ovansidan',
-  R: 'Högersidan',
-  F: 'Framsidan',
-  D: 'Undersidan',
-  L: 'Vänstersidan',
-  B: 'Baksidan',
-};
-
 export type Vec3 = [number, number, number];
 
-const NORMALS: Record<Face, Vec3> = {
+export const NORMALS: Record<Face, Vec3> = {
   U: [0, 1, 0],
   R: [1, 0, 0],
   F: [0, 0, 1],
@@ -88,6 +79,11 @@ const key = (p: Vec3) => p.join(',');
 const POINT_TO_INDEX = new Map<string, number>(
   GEOMETRY.map((g) => [key(g.pos.map((v, i) => 2 * v + g.normal[i]) as Vec3), g.index]),
 );
+
+/** Index för klistermärket på biten `pos` vars yta pekar åt `normal`. */
+export function faceletIndexAt(pos: Vec3, normal: Vec3): number | undefined {
+  return POINT_TO_INDEX.get(key(pos.map((v, i) => 2 * v + normal[i]) as Vec3));
+}
 
 /** Vrid en punkt 90° (quarter = +1) eller -90° (quarter = -1) kring en axel. */
 export function rotate(p: Vec3, axis: 0 | 1 | 2, quarter: 1 | -1): Vec3 {

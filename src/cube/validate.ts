@@ -1,4 +1,4 @@
-import { COLORS, FACES, type Face, type Facelets } from './model';
+import { FACES, type Face, type Facelets } from './model';
 
 /*
  * Kontroll av att en ifylld kub faktiskt går att lösa. Bygger på samma
@@ -34,12 +34,15 @@ const EDGE_COLORS: Face[][] = [
   ['F', 'R'], ['F', 'L'], ['B', 'L'], ['B', 'R'],
 ];
 
+export type ValidationError =
+  | { code: 'missing'; count: number }
+  | { code: 'wrongCount'; counts: [Face, number][] }
+  | { code: 'noCorner' | 'noEdge' | 'dupCorner' | 'dupEdge'; faces: (Face | null)[] }
+  | { code: 'twist' | 'flip' | 'parity' };
+
 export type ValidationResult =
   | { ok: true }
-  | { ok: false; message: string; stickers?: number[] };
-
-const colorList = (faces: (Face | null)[]) =>
-  faces.map((f) => (f ? COLORS[f].name.toLowerCase() : 'okänd')).join(', ');
+  | { ok: false; error: ValidationError; stickers?: number[] };
 
 function parity(perm: number[]): number {
   let p = 0;
@@ -59,7 +62,7 @@ export function validate(state: Facelets): ValidationResult {
   if (missing.length > 0) {
     return {
       ok: false,
-      message: `${missing.length} ${missing.length === 1 ? 'ruta saknar' : 'rutor saknar'} färg.`,
+      error: { code: 'missing', count: missing.length },
       stickers: missing,
     };
   }
@@ -67,11 +70,7 @@ export function validate(state: Facelets): ValidationResult {
   const counts = colorCounts(state);
   const wrong = FACES.filter((f) => counts[f] !== 9);
   if (wrong.length > 0) {
-    const parts = wrong.map((f) => `${COLORS[f].name.toLowerCase()} (${counts[f]})`);
-    return {
-      ok: false,
-      message: `Varje färg ska finnas exakt 9 gånger. Fel antal: ${parts.join(', ')}.`,
-    };
+    return { ok: false, error: { code: 'wrongCount', counts: wrong.map((f) => [f, counts[f]]) } };
   }
 
   // Hörn
@@ -86,7 +85,7 @@ export function validate(state: Facelets): ValidationResult {
     if (j < 0) {
       return {
         ok: false,
-        message: `Det finns inget hörn med färgerna ${colorList(idx.map((k) => state[k]))}. Kolla de markerade rutorna.`,
+        error: { code: 'noCorner', faces: idx.map((k) => state[k]) },
         stickers: idx,
       };
     }
@@ -108,7 +107,7 @@ export function validate(state: Facelets): ValidationResult {
     if (j < 0) {
       return {
         ok: false,
-        message: `Det finns ingen kantbit med färgerna ${colorList([state[a], state[b]])}. Kolla de markerade rutorna.`,
+        error: { code: 'noEdge', faces: [state[a], state[b]] },
         stickers: [a, b],
       };
     }
@@ -121,7 +120,7 @@ export function validate(state: Facelets): ValidationResult {
     const same = cp.map((v, i) => (v === cp[dupCorner] ? i : -1)).filter((i) => i >= 0);
     return {
       ok: false,
-      message: `Hörnet ${colorList(CORNER_COLORS[cp[dupCorner]])} finns mer än en gång.`,
+      error: { code: 'dupCorner', faces: CORNER_COLORS[cp[dupCorner]] },
       stickers: same.flatMap((i) => CORNER_FACELETS[i]),
     };
   }
@@ -130,31 +129,13 @@ export function validate(state: Facelets): ValidationResult {
     const same = ep.map((v, i) => (v === ep[dupEdge] ? i : -1)).filter((i) => i >= 0);
     return {
       ok: false,
-      message: `Kantbiten ${colorList(EDGE_COLORS[ep[dupEdge]])} finns mer än en gång.`,
+      error: { code: 'dupEdge', faces: EDGE_COLORS[ep[dupEdge]] },
       stickers: same.flatMap((i) => EDGE_FACELETS[i]),
     };
   }
 
-  if (twist % 3 !== 0) {
-    return {
-      ok: false,
-      message:
-        'Ett hörn verkar vara vridet. Det kan inte hända med vanliga vridningar – kolla att färgerna på hörnen stämmer (eller om kuben har plockats isär).',
-    };
-  }
-  if (flip % 2 !== 0) {
-    return {
-      ok: false,
-      message:
-        'En kantbit verkar vara vänd åt fel håll. Kolla att färgerna på kanterna stämmer (eller om kuben har plockats isär).',
-    };
-  }
-  if (parity(cp) !== parity(ep)) {
-    return {
-      ok: false,
-      message:
-        'Två bitar verkar ha bytt plats med varandra. Kolla att du har fyllt i rätt – en sådan kub går inte att lösa.',
-    };
-  }
+  if (twist % 3 !== 0) return { ok: false, error: { code: 'twist' } };
+  if (flip % 2 !== 0) return { ok: false, error: { code: 'flip' } };
+  if (parity(cp) !== parity(ep)) return { ok: false, error: { code: 'parity' } };
   return { ok: true };
 }

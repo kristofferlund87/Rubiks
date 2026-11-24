@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import type { Facelets, Move } from '../cube/model';
+import { useI18n } from '../i18n';
 import { CubeScene } from './cubeScene';
 
 export interface Cube3DHandle {
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export const Cube3D = forwardRef<Cube3DHandle, Props>(function Cube3D({ state, highlight }, ref) {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<CubeScene | null>(null);
 
@@ -36,6 +38,6 @@ export const Cube3D = forwardRef<Cube3DHandle, Props>(function Cube3D({ state, h
   }));
 
   return (
-    <div className="cube3d" ref={containerRef} aria-label="3D-vy av kuben. Dra för att vrida på den." />
+    <div className="cube3d" ref={containerRef} aria-label={t.cube3dLabel} />
   );
 });

@@ -1,51 +1,60 @@
-# Kubhjälpen
+# Cube Helper
 
-En webbapp som hjälper dig att lösa din Rubiks kub. Fyll i färgerna på din kub
-och få en lösning steg för steg, med en 3D-animation av varje drag.
+A web app that helps you solve your 3×3 cube. Enter the colors of your cube and
+get a step-by-step solution with a 3D animation of every move.
 
-## Kom igång
+Available in English and Swedish – the language follows the device setting and
+can be changed in the app.
+
+**Live:** https://kristofferlund87.github.io/Rubiks/
+
+## Getting started
 
 ```bash
 npm install
-npm run dev      # utvecklingsserver på http://localhost:5173
-npm test         # enhetstester
-npm run build    # produktionsbygge till dist/
+npm run dev      # dev server at http://localhost:5173
+npm test         # unit tests
+npm run build    # production build to dist/
 ```
 
-## Publicering
+## Deployment
 
-Varje push till `main` testas, byggs och publiceras på GitHub Pages via
-`.github/workflows/deploy.yml`. Pull requests testas och byggs men publiceras
-inte. Pages måste vara påslaget en gång i repots inställningar:
-**Settings → Pages → Source: GitHub Actions**.
+Every push to `main` is tested, built and published to GitHub Pages by
+`.github/workflows/deploy.yml`. Pull requests are tested and built but not
+published.
 
-## Så fungerar det
+## How it works
 
-1. **Fyll i kuben** – håll kuben med vit mitt uppåt och grön mitt mot dig, välj
-   en färg och tryck (eller dra) över rutorna i den utvikta kuben.
-2. **Kontroll** – appen kontrollerar att varje färg finns 9 gånger och att kuben
-   faktiskt går att lösa (inga vridna hörn, vända kanter eller bytta bitar) och
-   markerar rutor som verkar fel.
-3. **Lösning** – Kociembas tvåfasalgoritm (via [`cubejs`](https://github.com/ldez/cubejs))
-   hittar en lösning på högst ~22 drag. Den körs i en Web Worker så att sidan inte
-   fryser.
-4. **Följ dragen** – spela upp, stega fram/bak eller hoppa till valfritt drag.
-   Varje drag förklaras i klartext.
+1. **Scan or enter the cube** – take two photos with a corner pointing at the
+   camera (three faces per photo, opposite corners). Drag the outline to fit the
+   cube; the app works out which faces it sees from the center colors, so the
+   cube can be held in any rotation. Or pick a color and tap (or drag across)
+   the squares of the unfolded cube. Scanned colors can be corrected the same way.
+2. **Validation** – the app checks that every color appears 9 times and that the
+   cube is actually solvable (no twisted corners, flipped edges or swapped
+   pieces) and highlights squares that look wrong.
+3. **Solution** – Kociemba's two-phase algorithm (via
+   [`cubejs`](https://github.com/ldez/cubejs)) finds a solution of at most ~22
+   moves. It runs in a Web Worker so the page never freezes.
+4. **Follow the moves** – play, step forward/back or jump to any move. Each move
+   is explained in plain language.
 
-## Struktur
+## Structure
 
-| Fil | Innehåll |
+| File | Contents |
 | --- | --- |
-| `src/cube/model.ts` | Kubmodell (54 klistermärken i Kociemba-ordning), drag, blandning |
-| `src/cube/validate.ts` | Kontroll av att en ifylld kub går att lösa |
-| `src/cube/solver*.ts` | Lösaren i en Web Worker |
-| `src/cube/explain.ts` | Förklaring av drag på svenska |
-| `src/components/cubeScene.ts` | Three.js-scen med animerade drag |
-| `src/components/NetEditor.tsx` | Utvikt kub för att fylla i färger |
-| `src/components/SolutionPlayer.tsx` | Uppspelning av lösningen |
+| `src/cube/model.ts` | Cube model (54 stickers in Kociemba order), moves, scrambles |
+| `src/cube/validate.ts` | Checks that an entered cube is solvable |
+| `src/cube/solver*.ts` | The solver, running in a Web Worker |
+| `src/scan/geometry.ts` | Corner-view geometry: outline, perspective mapping, which sticker is where |
+| `src/scan/assemble.ts` | Turns two photos' color samples into a cube (center detection + balanced color assignment) |
+| `src/components/Scanner.tsx` | Camera / photo upload and adjustable outline |
+| `src/i18n/` | Translations (English, Swedish) and language selection |
+| `src/components/cubeScene.ts` | Three.js scene with animated moves |
+| `src/components/NetEditor.tsx` | Unfolded cube for entering colors |
+| `src/components/SolutionPlayer.tsx` | Solution playback |
 
-## Kommande
+## Adding a language
 
-- **Version 2:** läs av kuben från två foton (tre sidor per bild) med steg för
-  att rätta felavlästa färger.
-- **Version 3:** läget "Lär dig" med nybörjarmetoden lager för lager.
+Copy the `sv` object in `src/i18n/strings.tsx`, translate it, and add it to
+`STRINGS` and `LANG_NAMES`. TypeScript reports any missing strings.

@@ -72,28 +72,27 @@ describe('validering', () => {
   it('hittar tomma rutor', () => {
     const s: Facelets = [...SOLVED];
     s[0] = null;
-    const r = validate(s);
-    expect(r.ok).toBe(false);
+    expect(validate(s)).toMatchObject({ ok: false, error: { code: 'missing', count: 1 }, stickers: [0] });
   });
 
   it('hittar fel antal av en färg', () => {
     const s: Facelets = [...SOLVED];
     s[0] = 'R';
-    expect(validate(s)).toMatchObject({ ok: false, message: expect.stringContaining('9 gånger') });
+    expect(validate(s)).toMatchObject({ ok: false, error: { code: 'wrongCount' } });
   });
 
   it('hittar ett vridet hörn', () => {
     const s: Facelets = [...SOLVED];
     // URF-hörnet: U9=8, R1=9, F3=20 – vrid det ett steg
     [s[8], s[9], s[20]] = [s[20], s[8], s[9]];
-    expect(validate(s)).toMatchObject({ ok: false, message: expect.stringContaining('vridet') });
+    expect(validate(s)).toMatchObject({ ok: false, error: { code: 'twist' } });
   });
 
   it('hittar en vänd kant', () => {
     const s: Facelets = [...SOLVED];
     // UF-kanten: U8=7, F2=19
     [s[7], s[19]] = [s[19], s[7]];
-    expect(validate(s)).toMatchObject({ ok: false, message: expect.stringContaining('vänd') });
+    expect(validate(s)).toMatchObject({ ok: false, error: { code: 'flip' } });
   });
 
   it('hittar två kanter som bytt plats', () => {
@@ -102,7 +101,7 @@ describe('validering', () => {
     const swap = (a: number, b: number) => ([s[a], s[b]] = [s[b], s[a]]);
     swap(7, 5);
     swap(19, 10);
-    expect(validate(s)).toMatchObject({ ok: false, message: expect.stringContaining('bytt plats') });
+    expect(validate(s)).toMatchObject({ ok: false, error: { code: 'parity' } });
     s = applyMoves(s, parseAlg('R U F'));
     expect(validate(s).ok).toBe(false);
   });

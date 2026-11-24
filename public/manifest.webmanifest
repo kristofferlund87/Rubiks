@@ -1,8 +1,8 @@
 {
-  "name": "Kubhjälpen",
-  "short_name": "Kubhjälpen",
-  "description": "Lös din Rubiks kub steg för steg.",
-  "lang": "sv",
+  "name": "Cube Helper",
+  "short_name": "Cube Helper",
+  "description": "Solve your 3x3 cube step by step.",
+  "lang": "en",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#0f1115",
