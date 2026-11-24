@@ -218,7 +218,7 @@ main {
     'l f r b'
     '. d . .';
   gap: 5px;
-  touch-action: none;
+  touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }

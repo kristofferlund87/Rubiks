@@ -8,11 +8,16 @@ interface Props {
   onPaint(index: number): void;
 }
 
-/** Utvikt kub där man målar rutor genom att trycka eller dra. */
+/**
+ * Utvikt kub där man målar rutor. Med mus kan man trycka eller dra över
+ * rutorna. Med finger målar bara ett tryck, så att man kan scrolla sidan
+ * över kuben utan att råka måla.
+ */
 export function NetEditor({ state, highlight, onPaint }: Props) {
   const { t } = useI18n();
   const painting = useRef(false);
   const last = useRef<number | null>(null);
+  const tap = useRef<{ x: number; y: number; moved: boolean } | null>(null);
 
   const paintAt = (x: number, y: number) => {
     const el = document.elementFromPoint(x, y) as HTMLElement | null;
@@ -24,18 +29,35 @@ export function NetEditor({ state, highlight, onPaint }: Props) {
     onPaint(i);
   };
 
+  const stop = () => {
+    painting.current = false;
+    tap.current = null;
+  };
+
   return (
     <div
       className="net"
       onPointerDown={(e) => {
-        painting.current = true;
         last.current = null;
-        paintAt(e.clientX, e.clientY);
+        if (e.pointerType === 'mouse') {
+          painting.current = true;
+          paintAt(e.clientX, e.clientY);
+        } else {
+          tap.current = { x: e.clientX, y: e.clientY, moved: false };
+        }
       }}
-      onPointerMove={(e) => painting.current && paintAt(e.clientX, e.clientY)}
-      onPointerUp={() => (painting.current = false)}
-      onPointerLeave={() => (painting.current = false)}
-      onPointerCancel={() => (painting.current = false)}
+      onPointerMove={(e) => {
+        if (painting.current) paintAt(e.clientX, e.clientY);
+        const tp = tap.current;
+        if (tp && Math.hypot(e.clientX - tp.x, e.clientY - tp.y) > 10) tp.moved = true;
+      }}
+      onPointerUp={(e) => {
+        const tp = tap.current;
+        if (tp && !tp.moved) paintAt(e.clientX, e.clientY);
+        stop();
+      }}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && stop()}
+      onPointerCancel={stop}
     >
       {FACES.map((face, fi) => (
         <div key={face} className={`net-face net-${face}`} title={t.faces[face]}>
