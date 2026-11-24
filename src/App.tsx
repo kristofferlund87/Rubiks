@@ -15,7 +15,9 @@ import {
   type Move,
 } from './cube/model';
 import { solve, warmUpSolver } from './cube/solver';
-import { colorCounts, validate } from './cube/validate';
+import { colorCounts, validate, type ValidationError } from './cube/validate';
+import { useI18n } from './i18n';
+import { APP_NAME, LANG_NAMES, type Lang } from './i18n/strings';
 
 const STORAGE_KEY = 'kubhjalpen.state.v1';
 
@@ -29,24 +31,32 @@ function loadSaved(): Facelets {
       if (Array.isArray(parsed) && parsed.length === 54) return parsed;
     }
   } catch {
-    /* ignorera */
+    /* ignore */
   }
   return emptyCube();
 }
 
 type View = { mode: 'edit' } | { mode: 'solution'; start: Facelets; moves: Move[] };
 
+/** Fel sparas som data (inte text) så att de översätts om man byter språk. */
+type AppError =
+  | { kind: 'validation'; error: ValidationError; stickers?: number[] }
+  | { kind: 'alreadySolved' }
+  | { kind: 'solveFailed' };
+
 export default function App() {
+  const { t, lang, setLang } = useI18n();
   const [cube, setCube] = useState<Facelets>(loadSaved);
   const [shown, setShown] = useState<Facelets>(cube);
   const [brush, setBrush] = useState<Face>('U');
   const [view, setView] = useState<View>({ mode: 'edit' });
   const [solverReady, setSolverReady] = useState(false);
   const [solving, setSolving] = useState(false);
-  const [error, setError] = useState<{ message: string; stickers?: number[] } | null>(null);
+  const [error, setError] = useState<AppError | null>(null);
   const cube3d = useRef<Cube3DHandle>(null);
 
   useEffect(() => {
+    document.title = APP_NAME;
     warmUpSolver().then(() => setSolverReady(true));
   }, []);
 
@@ -54,14 +64,25 @@ export default function App() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cube));
     } catch {
-      /* ignorera */
+      /* ignore */
     }
     if (view.mode === 'edit') setShown(cube);
   }, [cube, view.mode]);
 
   const counts = useMemo(() => colorCounts(cube), [cube]);
-  const highlight = useMemo(() => (error?.stickers ? new Set(error.stickers) : undefined), [error]);
+  const highlight = useMemo(
+    () => (error?.kind === 'validation' && error.stickers ? new Set(error.stickers) : undefined),
+    [error],
+  );
   const filled = cube.filter(Boolean).length;
+
+  const errorText = !error
+    ? null
+    : error.kind === 'validation'
+      ? t.validation(error.error, (f) => (f ? t.colors[f].toLowerCase() : '?'))
+      : error.kind === 'alreadySolved'
+        ? t.alreadySolved
+        : t.solveFailed;
 
   const updateCube = (next: Facelets) => {
     setCube(next);
@@ -81,11 +102,11 @@ export default function App() {
   const onSolve = async () => {
     const result = validate(cube);
     if (!result.ok) {
-      setError(result);
+      setError({ kind: 'validation', error: result.error, stickers: result.stickers });
       return;
     }
     if (isSolved(cube)) {
-      setError({ message: 'Kuben är redan löst! Fyll i hur din kub ser ut just nu.' });
+      setError({ kind: 'alreadySolved' });
       return;
     }
     setSolving(true);
@@ -95,7 +116,7 @@ export default function App() {
       setView({ mode: 'solution', start: cube, moves });
       cube3d.current?.resetView();
     } catch {
-      setError({ message: 'Något gick fel när kuben skulle lösas. Kontrollera färgerna och försök igen.' });
+      setError({ kind: 'solveFailed' });
     } finally {
       setSolving(false);
     }
@@ -104,30 +125,41 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <h1>
-          <span className="logo" aria-hidden="true" />
-          Kubhjälpen
-        </h1>
-        <p className="tagline">Fyll i din kub – få en lösning steg för steg.</p>
+        <div className="header-row">
+          <h1>
+            <span className="logo" aria-hidden="true" />
+            {APP_NAME}
+          </h1>
+          <select
+            className="lang"
+            value={lang}
+            onChange={(e) => setLang(e.target.value as Lang)}
+            aria-label={t.languageLabel}
+          >
+            {(Object.keys(LANG_NAMES) as Lang[]).map((l) => (
+              <option key={l} value={l}>
+                {LANG_NAMES[l]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="tagline">{t.tagline}</p>
       </header>
 
       <main className={view.mode === 'solution' ? 'solution-mode' : 'edit-mode'}>
         <section className="stage">
           <Cube3D ref={cube3d} state={shown} highlight={view.mode === 'edit' ? highlight : undefined} />
-          <p className="stage-hint">Dra för att snurra på kuben</p>
+          <p className="stage-hint">{t.dragHint}</p>
         </section>
 
         {view.mode === 'edit' ? (
           <section className="panel">
             <div className="instructions">
-              <h2>1. Fyll i färgerna</h2>
-              <p>
-                Håll kuben med <strong>vit mitt uppåt</strong> och <strong>grön mitt mot dig</strong>.
-                Välj en färg och tryck på rutorna. Mittrutorna är redan ifyllda – de flyttar sig aldrig.
-              </p>
+              <h2>{t.step1Title}</h2>
+              <p>{t.step1Text}</p>
             </div>
 
-            <div className="palette" role="radiogroup" aria-label="Välj färg">
+            <div className="palette" role="radiogroup" aria-label={t.pickColor}>
               {FACES.map((f) => (
                 <button
                   key={f}
@@ -138,7 +170,7 @@ export default function App() {
                   style={{ '--swatch': COLORS[f].hex } as React.CSSProperties}
                 >
                   <span className="swatch-color" />
-                  <span className="swatch-name">{COLORS[f].name}</span>
+                  <span className="swatch-name">{t.colors[f]}</span>
                   <span className={'swatch-count' + (counts[f] > 9 ? ' over' : counts[f] === 9 ? ' full' : '')}>
                     {counts[f]}/9
                   </span>
@@ -148,44 +180,32 @@ export default function App() {
 
             <NetEditor state={cube} highlight={highlight} onPaint={paint} />
 
-            {error && (
+            {errorText && (
               <div className="error-box" role="alert">
-                {error.message}
+                {errorText}
               </div>
             )}
 
             <div className="actions">
               <button className="primary big" onClick={onSolve} disabled={!solverReady || solving}>
-                {!solverReady ? 'Förbereder lösaren…' : solving ? 'Löser…' : `Lös kuben (${filled}/54)`}
+                {!solverReady ? t.preparingSolver : solving ? t.solving : t.solveButton(filled)}
               </button>
               <div className="secondary-actions">
-                <button onClick={() => updateCube(applyMoves(SOLVED, randomScramble()))}>
-                  Slumpa en kub
-                </button>
-                <button onClick={() => updateCube(emptyCube())}>Rensa</button>
+                <button onClick={() => updateCube(applyMoves(SOLVED, randomScramble()))}>{t.randomCube}</button>
+                <button onClick={() => updateCube(emptyCube())}>{t.clear}</button>
               </div>
             </div>
           </section>
         ) : (
           <section className="panel">
             <div className="instructions">
-              <h2>2. Följ dragen</h2>
-              <p>
-                Håll fortfarande kuben med <strong>vit uppåt</strong> och <strong>grön mot dig</strong>.
-                Gör ett drag i taget och jämför med bilden.
-              </p>
+              <h2>{t.step2Title}</h2>
+              <p>{t.step2Text}</p>
             </div>
             <SolutionPlayer start={view.start} moves={view.moves} cube={cube3d} onShow={setShown} />
             <details className="notation">
-              <summary>Vad betyder bokstäverna?</summary>
-              <ul>
-                <li><strong>U</strong> = ovansidan (up), <strong>D</strong> = undersidan (down)</li>
-                <li><strong>R</strong> = högra sidan, <strong>L</strong> = vänstra sidan</li>
-                <li><strong>F</strong> = framsidan, <strong>B</strong> = baksidan</li>
-                <li>Bara bokstaven = ett kvarts varv medurs, sett rakt mot den sidan</li>
-                <li><strong>'</strong> (t.ex. R') = ett kvarts varv moturs</li>
-                <li><strong>2</strong> (t.ex. R2) = ett halvt varv</li>
-              </ul>
+              <summary>{t.notationTitle}</summary>
+              {t.notation}
             </details>
             <div className="actions">
               <button
@@ -194,7 +214,7 @@ export default function App() {
                   setShown(cube);
                 }}
               >
-                ← Ändra kuben
+                {t.editCube}
               </button>
             </div>
           </section>

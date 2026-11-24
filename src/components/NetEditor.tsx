@@ -1,5 +1,6 @@
 import { useRef } from 'react';
-import { CENTER_INDICES, COLORS, FACE_NAMES, FACES, UNKNOWN_HEX, type Facelets } from '../cube/model';
+import { CENTER_INDICES, COLORS, FACES, UNKNOWN_HEX, type Facelets } from '../cube/model';
+import { useI18n } from '../i18n';
 
 interface Props {
   state: Facelets;
@@ -9,6 +10,7 @@ interface Props {
 
 /** Utvikt kub där man målar rutor genom att trycka eller dra. */
 export function NetEditor({ state, highlight, onPaint }: Props) {
+  const { t } = useI18n();
   const painting = useRef(false);
   const last = useRef<number | null>(null);
 
@@ -36,7 +38,7 @@ export function NetEditor({ state, highlight, onPaint }: Props) {
       onPointerCancel={() => (painting.current = false)}
     >
       {FACES.map((face, fi) => (
-        <div key={face} className={`net-face net-${face}`} title={FACE_NAMES[face]}>
+        <div key={face} className={`net-face net-${face}`} title={t.faces[face]}>
           {Array.from({ length: 9 }, (_, i) => {
             const index = fi * 9 + i;
             const s = state[index];
@@ -49,7 +51,7 @@ export function NetEditor({ state, highlight, onPaint }: Props) {
                   'net-cell' + (center ? ' center' : '') + (highlight?.has(index) ? ' error' : '')
                 }
                 style={{ background: s ? COLORS[s].hex : UNKNOWN_HEX }}
-                aria-label={`${FACE_NAMES[face]} ruta ${i + 1}: ${s ? COLORS[s].name : 'ingen färg'}`}
+                aria-label={t.stickerLabel(t.faces[face], i + 1, s ? t.colors[s] : null)}
               />
             );
           })}

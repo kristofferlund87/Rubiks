@@ -20,24 +20,15 @@ export type Facelets = Sticker[];
 
 export const SOLVED: Face[] = FACES.flatMap((f) => Array<Face>(9).fill(f));
 
-export const COLORS: Record<Face, { hex: string; name: string }> = {
-  U: { hex: '#f4f4f4', name: 'Vit' },
-  R: { hex: '#d0213b', name: 'Röd' },
-  F: { hex: '#0aa34f', name: 'Grön' },
-  D: { hex: '#ffd31a', name: 'Gul' },
-  L: { hex: '#ff6a13', name: 'Orange' },
-  B: { hex: '#1663d6', name: 'Blå' },
+export const COLORS: Record<Face, { hex: string }> = {
+  U: { hex: '#f4f4f4' }, // vit
+  R: { hex: '#d0213b' }, // röd
+  F: { hex: '#0aa34f' }, // grön
+  D: { hex: '#ffd31a' }, // gul
+  L: { hex: '#ff6a13' }, // orange
+  B: { hex: '#1663d6' }, // blå
 };
 export const UNKNOWN_HEX = '#5b6270';
-
-export const FACE_NAMES: Record<Face, string> = {
-  U: 'Ovansidan',
-  R: 'Högersidan',
-  F: 'Framsidan',
-  D: 'Undersidan',
-  L: 'Vänstersidan',
-  B: 'Baksidan',
-};
 
 export type Vec3 = [number, number, number];
 
