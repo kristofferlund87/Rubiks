@@ -15,6 +15,27 @@ const en = {
     `${face} face, square ${n}: ${color ?? 'no color'}`,
   pickColor: 'Pick a color',
 
+  scanButton: '📷 Scan with camera',
+  scanTitle: (n: number) => `Photo ${n} of 2`,
+  scanInstr1:
+    'Hold the cube with a corner pointing at the camera so you see three faces, and fit it inside the outline.',
+  scanInstr2:
+    'Now turn the cube around so you see the three other faces – the opposite corner pointing at the camera.',
+  scanTip: 'Tip: even light without glare gives the best result.',
+  capture: 'Take photo',
+  upload: 'Choose photo',
+  noCamera: 'The camera isn’t available. You can choose a photo instead.',
+  adjustInstr:
+    'Drag the dots so the lines follow the edges of the cube. The colored dots should land in the middle of each square.',
+  retake: 'Retake',
+  nextPhoto: 'Next photo →',
+  usePhotos: 'Read the cube',
+  backToPhoto1: '← Photo 1',
+  cancel: 'Cancel',
+  scanError:
+    'Couldn’t tell which faces are which from the center colors. Make sure the two photos show opposite corners, then adjust the outlines or retake the photos.',
+  scanDone: 'Check that the colors match your cube and fix any mistakes by tapping the squares. Then press Solve.',
+
   step1Title: '1. Enter the colors',
   step1Text: (
     <>
@@ -121,6 +142,27 @@ const sv: Strings = {
   faces: { U: 'Ovansidan', R: 'Högersidan', F: 'Framsidan', D: 'Undersidan', L: 'Vänstersidan', B: 'Baksidan' },
   stickerLabel: (face, n, color) => `${face} ruta ${n}: ${color ?? 'ingen färg'}`,
   pickColor: 'Välj färg',
+
+  scanButton: '📷 Skanna med kameran',
+  scanTitle: (n) => `Bild ${n} av 2`,
+  scanInstr1:
+    'Håll kuben med ett hörn mot kameran så att du ser tre sidor, och passa in den i ramen.',
+  scanInstr2:
+    'Vänd nu på kuben så att du ser de tre andra sidorna – det motsatta hörnet mot kameran.',
+  scanTip: 'Tips: jämnt ljus utan reflexer ger bäst resultat.',
+  capture: 'Ta bild',
+  upload: 'Välj bild',
+  noCamera: 'Kameran är inte tillgänglig. Du kan välja en bild i stället.',
+  adjustInstr:
+    'Dra i prickarna så att linjerna följer kubens kanter. De färgade prickarna ska hamna mitt i varje ruta.',
+  retake: 'Ta om',
+  nextPhoto: 'Nästa bild →',
+  usePhotos: 'Läs av kuben',
+  backToPhoto1: '← Bild 1',
+  cancel: 'Avbryt',
+  scanError:
+    'Kunde inte avgöra vilken sida som är vilken från mittfärgerna. Kontrollera att bilderna visar motsatta hörn, och justera ramarna eller ta om bilderna.',
+  scanDone: 'Kontrollera att färgerna stämmer med din kub och rätta eventuella fel genom att trycka på rutorna. Tryck sedan på Lös.',
 
   step1Title: '1. Fyll i färgerna',
   step1Text: (

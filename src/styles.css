@@ -370,3 +370,151 @@ main {
 .notation strong {
   color: var(--text);
 }
+
+/* Skanning */
+.scan-button {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  font-weight: 600;
+  border-color: var(--accent);
+  color: #cfe0ff;
+}
+.info-box {
+  background: #16263f;
+  border: 1px solid #284a7a;
+  color: #cfe0ff;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+}
+.scanner {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: var(--bg);
+  overflow-y: auto;
+  padding: max(12px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+}
+.scanner-inner {
+  max-width: 560px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.scanner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.scanner-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.scanner-steps h2 {
+  margin: 0 0 0 6px;
+  font-size: 1.1rem;
+}
+.scanner-steps .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.scanner-steps .dot.active {
+  background: var(--accent);
+}
+.scanner-steps .dot.done {
+  background: #1f9d55;
+}
+.scanner-text {
+  margin: 0;
+  color: var(--muted);
+}
+.scanner-tip {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-align: center;
+}
+.viewfinder {
+  position: relative;
+  width: 100%;
+  max-width: min(100%, 62vh);
+  margin: 0 auto;
+  aspect-ratio: 1 / 1;
+  background: #000;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.viewfinder.adjust {
+  max-width: none;
+}
+.viewfinder video,
+.viewfinder img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.viewfinder .overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.viewfinder .overlay.interactive {
+  pointer-events: auto;
+  touch-action: none;
+}
+.hex-outline line {
+  stroke: rgba(255, 255, 255, 0.85);
+  pointer-events: none;
+  filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.8));
+}
+.hex-fill {
+  fill: rgba(255, 255, 255, 0.04);
+  cursor: move;
+}
+.sample {
+  stroke: #fff;
+  pointer-events: none;
+}
+.handle {
+  cursor: grab;
+}
+.handle-hit {
+  fill: transparent;
+}
+.handle-dot {
+  fill: var(--accent);
+  stroke: #fff;
+}
+.no-camera {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: var(--muted);
+}
+.scanner-actions {
+  display: flex;
+  gap: 8px;
+}
+.scanner-actions button {
+  flex: 1;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}

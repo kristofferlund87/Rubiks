@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Cube3D, type Cube3DHandle } from './components/Cube3D';
 import { NetEditor } from './components/NetEditor';
+import { Scanner } from './components/Scanner';
 import { SolutionPlayer } from './components/SolutionPlayer';
 import {
   applyMoves,
@@ -53,6 +54,8 @@ export default function App() {
   const [solverReady, setSolverReady] = useState(false);
   const [solving, setSolving] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [notice, setNotice] = useState(false);
   const cube3d = useRef<Cube3DHandle>(null);
 
   useEffect(() => {
@@ -87,6 +90,15 @@ export default function App() {
   const updateCube = (next: Facelets) => {
     setCube(next);
     setError(null);
+    setNotice(false);
+  };
+
+  const onScanned = (facelets: Facelets) => {
+    setScanning(false);
+    setCube(facelets);
+    setNotice(true);
+    const result = validate(facelets);
+    setError(result.ok ? null : { kind: 'validation', error: result.error, stickers: result.stickers });
   };
 
   const paint = (i: number) => {
@@ -159,6 +171,12 @@ export default function App() {
               <p>{t.step1Text}</p>
             </div>
 
+            <button className="scan-button" onClick={() => setScanning(true)}>
+              {t.scanButton}
+            </button>
+
+            {notice && <div className="info-box">{t.scanDone}</div>}
+
             <div className="palette" role="radiogroup" aria-label={t.pickColor}>
               {FACES.map((f) => (
                 <button
@@ -220,6 +238,8 @@ export default function App() {
           </section>
         )}
       </main>
+
+      {scanning && <Scanner onDone={onScanned} onCancel={() => setScanning(false)} />}
     </div>
   );
 }
