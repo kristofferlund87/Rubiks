@@ -4,7 +4,16 @@ import { validate } from '../cube/validate';
 import { assemble } from './assemble';
 import type { RGB } from './color';
 import type { Sample } from './sample';
-import { faceletIndicesForView, isValidCorner, quadMapper, regularHexagon, stickerPoints } from './geometry';
+import {
+  faceletIndicesForView,
+  flipHexagon,
+  isFlipped,
+  isValidCorner,
+  quadMapper,
+  regularHexagon,
+  SLOTS,
+  stickerPoints,
+} from './geometry';
 
 function seeded(seed: number) {
   return () => {
@@ -65,6 +74,22 @@ describe('geometri', () => {
     expect(VIEWS).toHaveLength(24);
     for (const [a, b, c] of VIEWS) {
       expect(new Set(faceletIndicesForView(NORMALS[a], NORMALS[b], NORMALS[c])).size).toBe(27);
+    }
+  });
+
+  it('upp-och-nervänd ram = samma avläsning som en bild vriden ett halvt varv', () => {
+    const hex = regularHexagon(50, 50, 40);
+    const flipped = flipHexagon(hex);
+    expect(isFlipped(hex)).toBe(false);
+    expect(isFlipped(flipped)).toBe(true);
+    expect(flipHexagon(flipped)).toEqual(hex);
+    for (const slot of SLOTS) {
+      const a = stickerPoints(hex, slot);
+      const b = stickerPoints(flipped, slot);
+      a.forEach((p, i) => {
+        expect(b[i].x).toBeCloseTo(100 - p.x);
+        expect(b[i].y).toBeCloseTo(100 - p.y);
+      });
     }
   });
 

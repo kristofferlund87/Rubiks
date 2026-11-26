@@ -1,5 +1,5 @@
 import type { RGB } from './color';
-import { SLOTS, stickerPoints, type Hexagon, type Point } from './geometry';
+import { slotMapper, SLOTS, type Hexagon, type Point } from './geometry';
 
 export interface Sample {
   /** Rutans färg (median, så att små reflexer inte förstör den). */
@@ -48,12 +48,52 @@ export function samplePatch(img: ImageData, p: Point, radius: number): Sample {
   return { rgb: [median(rs), median(gs), median(bs)], spread };
 }
 
-/** 27 färgprover (top, left, right) för en bild och ram. */
+/** För mörkt för att avgöra färgen säkert (skugga, svart plast, bakgrund). */
+export function isTooDark(rgb: RGB): boolean {
+  return Math.max(...rgb) < 60;
+}
+
+const lumOf = ([r, g, b]: RGB) => 0.299 * r + 0.587 * g + 0.114 * b;
+
+/** Förskjutning (i sidans enhetskoordinater) för delproverna i en ruta. */
+const SUB = 0.075;
+const SUB_OFFSETS: [number, number][] = [
+  [0, 0],
+  [-SUB, -SUB],
+  [SUB, -SUB],
+  [-SUB, SUB],
+  [SUB, SUB],
+];
+
+/**
+ * 27 färgprover (top, left, right) för en bild och ram.
+ *
+ * Varje ruta provas på fem ställen (mitten + fyra mot hörnen) och färgen blir
+ * medianen. En logga, en reflex eller en bit av kanten mellan rutorna slår då
+ * inte igenom. För mittrutorna används bara de fyra hörnproverna, eftersom
+ * många kuber har en logga mitt på.
+ */
 export function sampleHexagon(img: ImageData, hex: Hexagon): Sample[] {
-  // Provets storlek: en del av avståndet mellan hörnet och sexhörningens kant.
   const size = Math.hypot(hex.T.x - hex.C.x, hex.T.y - hex.C.y);
-  const radius = size * 0.06;
-  return SLOTS.flatMap((slot) => stickerPoints(hex, slot).map((p) => samplePatch(img, p, radius)));
+  const radius = size * 0.035;
+  return SLOTS.flatMap((slot) => {
+    const map = slotMapper(hex, slot);
+    const out: Sample[] = [];
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++) {
+        const u = (c + 0.5) / 3, v = (r + 0.5) / 3;
+        const offsets = r === 1 && c === 1 ? SUB_OFFSETS.slice(1) : SUB_OFFSETS;
+        const subs = offsets.map(([du, dv]) => samplePatch(img, map(u + du, v + dv), radius));
+        const rgb = [0, 1, 2].map((k) => median(subs.map((s) => s.rgb[k]))) as RGB;
+        // Ojämnt om delproverna själva är brusiga, eller om flera av dem skiljer
+        // sig tydligt från rutans färg (t.ex. hamnar på kanten eller utanför).
+        const L = lumOf(rgb);
+        const outliers = subs.filter((s) => Math.abs(lumOf(s.rgb) - L) > 45).length;
+        const spread = Math.max(median(subs.map((s) => s.spread)), outliers >= 2 ? 2 * SPREAD_LIMIT : 0);
+        out.push({ rgb, spread });
+      }
+    return out;
+  });
 }
 
 /**
@@ -91,4 +131,12 @@ export function toImageData(
     data: ctx.getImageData(0, 0, canvas.width, canvas.height),
     url: canvas.toDataURL('image/jpeg', 0.9),
   };
+}
+
+/**
+ * Hur väl ramen verkar passa: färre ojämna/opålitliga prover och mindre
+ * variation = bättre. Används för att välja mellan Y och upp-och-nervänt Y.
+ */
+export function fitScore(samples: Sample[]): number {
+  return samples.reduce((s, x) => s + Math.min(x.spread, 2 * SPREAD_LIMIT), 0);
 }

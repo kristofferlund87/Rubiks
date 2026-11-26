@@ -17,16 +17,38 @@ const en = {
 
   scanButton: '📷 Scan with camera',
   scanTitle: (n: number) => `Photo ${n} of 2`,
-  scanInstr1:
-    'Hold the cube with a corner pointing at the camera so you see three faces, and fit it inside the outline.',
+  scanInstr1: 'Point a corner of the cube at the camera so you see three faces, and fit it inside the outline.',
   scanInstr2:
-    'Now turn the cube around so you see the three other faces – the opposite corner pointing at the camera.',
+    'Turn the cube over so the opposite corner points at the camera and you see the three other faces. Upside down is fine.',
   scanTip: 'Tip: even light without glare gives the best result.',
   capture: 'Take photo',
   upload: 'Choose photo',
   noCamera: 'The camera isn’t available. You can choose a photo instead.',
   adjustInstr:
-    'Drag the dots so the lines follow the edges of the cube. The colored dots should land in the middle of each square.',
+    'Drag the blue dots to the corners of the cube so the lines follow its edges. The colored dots should land in the middle of each square.',
+  flipOutline: '⇅ Flip outline',
+  guideTitle: 'How to scan your cube',
+  guideIntro: 'You take 2 photos – each one shows 3 faces, so together they show all 6.',
+  guideStep1: (
+    <>
+      <strong>Photo 1:</strong> Point a corner of the cube straight at the camera. You should see three faces.
+    </>
+  ),
+  guideStep2: (
+    <>
+      <strong>Photo 2:</strong> Turn the cube over so the <strong>opposite corner</strong> points at the camera. Now
+      you see the three other faces. It doesn’t matter if the cube is upside down.
+    </>
+  ),
+  guideTips: [
+    'Hold the cube and phone still – blurry photos give wrong colors.',
+    'Use even light and avoid glare and strong shadows.',
+    'Let the cube fill most of the outline.',
+  ],
+  guideCorner: 'Corner towards the camera',
+  guideTurn: 'Turn over',
+  startCamera: 'Start camera',
+  showGuide: 'How?',
   retake: 'Retake',
   nextPhoto: 'Next photo →',
   usePhotos: 'Read the cube',
@@ -153,16 +175,38 @@ const sv: Strings = {
 
   scanButton: '📷 Skanna med kameran',
   scanTitle: (n) => `Bild ${n} av 2`,
-  scanInstr1:
-    'Håll kuben med ett hörn mot kameran så att du ser tre sidor, och passa in den i ramen.',
+  scanInstr1: 'Rikta ett hörn av kuben mot kameran så att du ser tre sidor, och passa in den i ramen.',
   scanInstr2:
-    'Vänd nu på kuben så att du ser de tre andra sidorna – det motsatta hörnet mot kameran.',
+    'Vänd kuben så att det motsatta hörnet pekar mot kameran och du ser de tre andra sidorna. Upp och ner går bra.',
   scanTip: 'Tips: jämnt ljus utan reflexer ger bäst resultat.',
   capture: 'Ta bild',
   upload: 'Välj bild',
   noCamera: 'Kameran är inte tillgänglig. Du kan välja en bild i stället.',
   adjustInstr:
-    'Dra i prickarna så att linjerna följer kubens kanter. De färgade prickarna ska hamna mitt i varje ruta.',
+    'Dra de blå prickarna till kubens hörn så att linjerna följer kanterna. De färgade prickarna ska hamna mitt i varje ruta.',
+  flipOutline: '⇅ Vänd ramen',
+  guideTitle: 'Så skannar du kuben',
+  guideIntro: 'Du tar 2 bilder – var och en visar 3 sidor, så tillsammans syns alla 6.',
+  guideStep1: (
+    <>
+      <strong>Bild 1:</strong> Rikta ett hörn av kuben rakt mot kameran. Då syns tre sidor.
+    </>
+  ),
+  guideStep2: (
+    <>
+      <strong>Bild 2:</strong> Vänd kuben så att <strong>det motsatta hörnet</strong> pekar mot kameran. Nu syns de
+      tre andra sidorna. Det gör inget om kuben står upp och ner.
+    </>
+  ),
+  guideTips: [
+    'Håll kuben och telefonen stilla – suddiga bilder ger fel färger.',
+    'Använd jämnt ljus och undvik reflexer och skarpa skuggor.',
+    'Låt kuben fylla det mesta av ramen.',
+  ],
+  guideCorner: 'Hörnet mot kameran',
+  guideTurn: 'Vänd',
+  startCamera: 'Starta kameran',
+  showGuide: 'Hur?',
   retake: 'Ta om',
   nextPhoto: 'Nästa bild →',
   usePhotos: 'Läs av kuben',

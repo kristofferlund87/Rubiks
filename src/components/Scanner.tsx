@@ -3,6 +3,7 @@ import type { Facelets } from '../cube/model';
 import { useI18n } from '../i18n';
 import { assemble, isUnreliable } from '../scan/assemble';
 import {
+  flipHexagon,
   gridLines,
   HEX_KEYS,
   regularHexagon,
@@ -12,7 +13,8 @@ import {
   type HexKey,
   type Point,
 } from '../scan/geometry';
-import { photoIssues, sampleHexagon, toImageData } from '../scan/sample';
+import { fitScore, photoIssues, sampleHexagon, toImageData } from '../scan/sample';
+import { PhotoIcon, ScanGuide } from './ScanGuide';
 
 interface Photo {
   data: ImageData;
@@ -29,6 +31,15 @@ interface Props {
 const HEX_RADIUS = 0.36;
 
 const initialHex = (w: number, h: number) => regularHexagon(w / 2, h / 2, Math.min(w, h) * HEX_RADIUS);
+
+/**
+ * Välj åt vilket håll ramen ska vara (Y eller upp-och-nervänt Y) utifrån vilket
+ * som passar bilden bäst. Byter bara om det andra hållet är tydligt bättre.
+ */
+function bestOrientation(img: ImageData, hex: Hexagon): Hexagon {
+  const alt = flipHexagon(hex);
+  return fitScore(sampleHexagon(img, alt)) < 0.75 * fitScore(sampleHexagon(img, hex)) ? alt : hex;
+}
 
 /** Ramen: sexhörning med rutnät för de tre sidorna. */
 function HexOutline({ hex, stroke }: { hex: Hexagon; stroke: number }) {
@@ -47,7 +58,7 @@ export function Scanner({ onDone, onCancel }: Props) {
   const { t } = useI18n();
   const [photos, setPhotos] = useState<(Photo | null)[]>([null, null]);
   const [k, setK] = useState(0);
-  const [mode, setMode] = useState<'live' | 'adjust'>('live');
+  const [mode, setMode] = useState<'intro' | 'live' | 'adjust'>('intro');
   const [cameraError, setCameraError] = useState(false);
   const [scanError, setScanError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -93,7 +104,7 @@ export function Scanner({ onDone, onCancel }: Props) {
     const s = Math.min(v.videoWidth, v.videoHeight);
     const crop = { x: (v.videoWidth - s) / 2, y: (v.videoHeight - s) / 2, w: s, h: s };
     const { data, url } = toImageData(v, v.videoWidth, v.videoHeight, crop);
-    setPhoto({ data, url, hex: initialHex(data.width, data.height) });
+    setPhoto({ data, url, hex: bestOrientation(data, initialHex(data.width, data.height)) });
   };
 
   const onFile = async (file: File | undefined) => {
@@ -101,7 +112,7 @@ export function Scanner({ onDone, onCancel }: Props) {
     const bitmap = await createImageBitmap(file);
     const { data, url } = toImageData(bitmap, bitmap.width, bitmap.height);
     bitmap.close();
-    setPhoto({ data, url, hex: initialHex(data.width, data.height) });
+    setPhoto({ data, url, hex: bestOrientation(data, initialHex(data.width, data.height)) });
   };
 
   const usePhoto = () => {
@@ -146,11 +157,20 @@ export function Scanner({ onDone, onCancel }: Props) {
           <button onClick={onCancel}>{t.cancel}</button>
         </div>
 
-        <p className="scanner-text">
-          {mode === 'live' ? (k === 0 ? t.scanInstr1 : t.scanInstr2) : t.adjustInstr}
-        </p>
+        {mode === 'live' && (
+          <div className="scanner-instr">
+            <PhotoIcon step={k as 0 | 1} />
+            <p className="scanner-text">{k === 0 ? t.scanInstr1 : t.scanInstr2}</p>
+            <button className="link" onClick={() => setMode('intro')}>
+              {t.showGuide}
+            </button>
+          </div>
+        )}
+        {mode === 'adjust' && <p className="scanner-text">{t.adjustInstr}</p>}
 
-        {mode === 'live' ? (
+        {mode === 'intro' ? (
+          <ScanGuide onStart={() => setMode('live')} onUpload={() => fileRef.current?.click()} />
+        ) : mode === 'live' ? (
           <>
             <div className="viewfinder">
               {cameraError ? (
@@ -265,7 +285,10 @@ function Adjuster({ photo, onChange }: { photo: Photo; onChange(hex: Hexagon): v
           viewBox={`0 0 ${W} ${H}`}
           className="overlay interactive"
           onPointerMove={onMove}
-          onPointerUp={() => (drag.current = null)}
+          onPointerUp={() => {
+            if (drag.current) onChange(bestOrientation(data, hex));
+            drag.current = null;
+          }}
           onPointerCancel={() => (drag.current = null)}
         >
           <polygon points={outline} className="hex-fill" onPointerDown={onDown('all')} />
@@ -296,6 +319,9 @@ function Adjuster({ photo, onChange }: { photo: Photo; onChange(hex: Hexagon): v
         </svg>
         <span className="sr-only">{t.adjustInstr}</span>
       </div>
+      <button className="flip-button" onClick={() => onChange(flipHexagon(hex))}>
+        {t.flipOutline}
+      </button>
       {issues.length > 0 && (
         <div className="warn-box" role="status">
           {issues.map((issue) => (

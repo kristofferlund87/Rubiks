@@ -28,7 +28,10 @@ published.
 1. **Scan or enter the cube** – take two photos with a corner pointing at the
    camera (three faces per photo, opposite corners). Drag the outline to fit the
    cube; the app works out which faces it sees from the center colors, so the
-   cube can be held in any rotation. Or pick a color and tap (or drag across)
+   cube can be held in any rotation – also upside down (the app picks the
+   orientation of the outline that fits best). Colors are compared by hue and
+   saturation rather than brightness, so shadows and different lighting between
+   the photos matter less, and squares the app is unsure about are marked. Or pick a color and tap (or drag across)
    the squares of the unfolded cube. Scanned colors can be corrected the same way.
 2. **Validation** – the app checks that every color appears 9 times and that the
    cube is actually solvable (no twisted corners, flipped edges or swapped
