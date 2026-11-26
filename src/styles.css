@@ -665,6 +665,18 @@ button.link {
   text-decoration: underline;
   flex: none;
 }
-.flip-button {
-  align-self: center;
+.adjust-tools {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  text-decoration: none;
 }

@@ -319,9 +319,12 @@ function Adjuster({ photo, onChange }: { photo: Photo; onChange(hex: Hexagon): v
         </svg>
         <span className="sr-only">{t.adjustInstr}</span>
       </div>
-      <button className="flip-button" onClick={() => onChange(flipHexagon(hex))}>
-        {t.flipOutline}
-      </button>
+      <div className="adjust-tools">
+        <button onClick={() => onChange(flipHexagon(hex))}>{t.flipOutline}</button>
+        <a className="link-button" href={url} download="cube-photo.jpg">
+          {t.savePhoto}
+        </a>
+      </div>
       {issues.length > 0 && (
         <div className="warn-box" role="status">
           {issues.map((issue) => (

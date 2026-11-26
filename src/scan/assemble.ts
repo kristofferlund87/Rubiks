@@ -6,6 +6,7 @@
  */
 import { FACES, NORMALS, type Face, type Facelets } from '../cube/model';
 import { featureDistance, NOMINAL, permutations, rgbToFeature, type Feature } from './color';
+import type { RGB } from './color';
 import { isBlownOut, isTooDark, SPREAD_LIMIT, type Sample } from './sample';
 import { faceletIndicesForView, isValidCorner, SLOTS } from './geometry';
 
@@ -16,6 +17,7 @@ export const CENTER_SAMPLES = [4, 13, 22];
  * färg som den tilldelade (avståndskvot över denna gräns).
  */
 export const AMBIGUITY_LIMIT = 0.6;
+
 
 export type AssembleResult =
   | {
@@ -49,8 +51,11 @@ export function isUnreliable(s: Sample): boolean {
   return s.spread > SPREAD_LIMIT || isBlownOut(s.rgb) || isTooDark(s.rgb);
 }
 
-export function assemble(photo1: Sample[], photo2: Sample[]): AssembleResult {
-  const samples = [...photo1, ...photo2];
+/** En avläsning utan vitbalansering. `rawUnreliable` = opålitliga prov (index 0–53). */
+function assembleOnce(
+  samples: Sample[],
+  rawUnreliable: Set<number>,
+): (AssembleResult & { ok: true; sampleFaces: Face[]; ambiguity: number }) | (AssembleResult & { ok: false }) {
   const feats = samples.map((s) => rgbToFeature(s.rgb));
   const centerIdx = [...CENTER_SAMPLES, ...CENTER_SAMPLES.map((i) => i + 27)];
   const views = identifyCenters(centerIdx.map((i) => feats[i]));
@@ -69,12 +74,14 @@ export function assemble(photo1: Sample[], photo2: Sample[]): AssembleResult {
   centerFace.forEach((f, i) => (refs[f] = feats[i]));
 
   const others = feats.map((_, i) => i).filter((i) => !centerFace.has(i));
+  const refFor = (_i: number, f: Face) => refs[f];
   // Opålitliga prov (reflex/ojämn färg) får sin färg sist och påverkar inte referenserna.
-  const unreliable = new Set(others.filter((i) => isUnreliable(samples[i])));
+  const unreliable = new Set(others.filter((i) => rawUnreliable.has(i)));
   let assignment = new Map<number, Face>();
   for (let iter = 0; iter < 5; iter++) {
     const pairs: { i: number; f: Face; d: number }[] = [];
-    for (const i of others) for (const f of FACES) pairs.push({ i, f, d: featureDistance(feats[i], refs[f]) });
+    for (const i of others)
+      for (const f of FACES) pairs.push({ i, f, d: featureDistance(feats[i], refFor(i, f)) });
     pairs.sort((a, b) => Number(unreliable.has(a.i)) - Number(unreliable.has(b.i)) || a.d - b.d);
     const next = new Map<number, Face>();
     const used = Object.fromEntries(FACES.map((f) => [f, 0])) as Record<Face, number>;
@@ -85,10 +92,9 @@ export function assemble(photo1: Sample[], photo2: Sample[]): AssembleResult {
     }
     assignment = next;
     for (const f of FACES) {
-      const members = [...assignment]
+      const members = [...assignment, ...centerFace]
         .filter(([i, g]) => g === f && !unreliable.has(i))
         .map(([i]) => feats[i]);
-      [...centerFace].filter(([, g]) => g === f).forEach(([i]) => members.push(feats[i]));
       refs[f] = [0, 1, 2].map((k) => members.reduce((s, m) => s + m[k], 0) / members.length) as Feature;
     }
   }
@@ -99,15 +105,96 @@ export function assemble(photo1: Sample[], photo2: Sample[]): AssembleResult {
   });
 
   // Osäkerhet: ojämnt prov (reflex/kant), eller nästan lika nära en annan färg.
+  // `ambiguity` summerar hur tvetydiga de pålitliga rutorna är – används för att
+  // välja mellan avläsningar med och utan vitbalans.
+  let ambiguity = 0;
   const uncertain = others
     .filter((i) => {
       if (unreliable.has(i)) return true;
       const own = assignment.get(i)!;
-      const dOwn = featureDistance(feats[i], refs[own]);
-      const dOther = Math.min(...FACES.filter((f) => f !== own).map((f) => featureDistance(feats[i], refs[f])));
-      return dOwn / Math.max(dOther, 1e-6) > AMBIGUITY_LIMIT;
+      const dOwn = featureDistance(feats[i], refFor(i, own));
+      const dOther = Math.min(...FACES.filter((f) => f !== own).map((f) => featureDistance(feats[i], refFor(i, f))));
+      const ratio = dOwn / Math.max(dOther, 1e-6);
+      ambiguity += Math.min(ratio, 1.5);
+      return ratio > AMBIGUITY_LIMIT;
     })
     .map((i) => indices[i]);
 
-  return { ok: true, facelets, views, uncertain };
+  const sampleFaces = indices.map((idx) => facelets[idx]!);
+  return { ok: true, facelets, views, uncertain, sampleFaces, ambiguity };
+}
+
+type Gains = RGB;
+
+const saturation = ([r, g, b]: RGB) => {
+  const max = Math.max(r, g, b);
+  return max > 0 ? (max - Math.min(r, g, b)) / max : 0;
+};
+
+/** Förstärkning per kanal som gör färgen `white` neutralt grå/vit. */
+function gainsFrom(white: RGB): Gains {
+  const avg = (white[0] + white[1] + white[2]) / 3;
+  return white.map((c) => Math.min(2, Math.max(0.5, avg / Math.max(c, 1)))) as Gains;
+}
+
+const medianRGB = (cs: RGB[]): RGB =>
+  [0, 1, 2].map((k) => {
+    const v = cs.map((c) => c[k]).sort((a, b) => a - b);
+    return v[Math.floor(v.length / 2)];
+  }) as RGB;
+
+function applyGains(samples: Sample[], g: Gains): Sample[] {
+  return samples.map((s) => ({
+    ...s,
+    rgb: s.rgb.map((c, k) => Math.min(255, c * g[k])) as RGB,
+  }));
+}
+
+/**
+ * Första gissning av vitbalansen för en bild: de mest omättade, ljusa och
+ * pålitliga rutorna är troligen vita (kuben har alltid vita rutor).
+ */
+function guessGains(photo: Sample[]): Gains {
+  const candidates = photo
+    .filter((s) => !isUnreliable(s) && Math.max(...s.rgb) > 90)
+    .sort((a, b) => saturation(a.rgb) - saturation(b.rgb))
+    .slice(0, 3);
+  return candidates.length ? gainsFrom(medianRGB(candidates.map((s) => s.rgb))) : [1, 1, 1];
+}
+
+/** Vitbalanserad avläsning: gissa vitt, läs av, balansera om efter de vita rutorna, läs av igen. */
+function assembleWhiteBalanced(raw: Sample[][], rawUnreliable: Set<number>) {
+  const balanced = raw.map((p) => applyGains(p, guessGains(p)));
+  const first = assembleOnce(balanced.flat(), rawUnreliable);
+  if (!first.ok) return first;
+  const refined = raw.map((p, v) => {
+    const whites = p
+      .filter((s, j) => first.sampleFaces[v * 27 + j] === 'U' && !isUnreliable(s))
+      .map((s) => s.rgb);
+    return whites.length >= 2 ? applyGains(p, gainsFrom(medianRGB(whites))) : balanced[v];
+  });
+  const second = assembleOnce(refined.flat(), rawUnreliable);
+  return second.ok ? second : first;
+}
+
+/**
+ * Läs av kuben från två bilder.
+ *
+ * Görs både med och utan automatisk vitbalans (som kompenserar för färgstick,
+ * t.ex. olika ljus i de två bilderna), och den avläsning som är minst tvetydig
+ * väljs. Vitbalans per bild hjälper när hela bilden har samma färgstick men kan
+ * stjälpa när ljuset varierar mellan kubens sidor – därför får den inte alltid
+ * bestämma.
+ */
+export function assemble(photo1: Sample[], photo2: Sample[]): AssembleResult {
+  const raw = [photo1, photo2];
+  const rawUnreliable = new Set(
+    raw.flat().map((s, i) => (isUnreliable(s) ? i : -1)).filter((i) => i >= 0),
+  );
+  const candidates = [assembleOnce(raw.flat(), rawUnreliable), assembleWhiteBalanced(raw, rawUnreliable)].filter(
+    (r) => r.ok,
+  ) as (AssembleResult & { ok: true; ambiguity: number })[];
+  if (!candidates.length) return { ok: false, error: 'centers' };
+  const best = candidates.reduce((a, b) => (b.ambiguity < a.ambiguity ? b : a));
+  return { ok: true, facelets: best.facelets, views: best.views, uncertain: best.uncertain };
 }
