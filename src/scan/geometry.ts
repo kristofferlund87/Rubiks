@@ -144,3 +144,18 @@ export function faceletIndicesForView(top: Vec3, left: Vec3, right: Vec3): numbe
   }
   return result;
 }
+
+/**
+ * Samma sexhörning åt andra hållet: hörnet mot kameran har en sida nedåt och
+ * två uppåt (linjerna från mitten bildar ett upp-och-nervänt Y). Det är så kuben
+ * ofta hamnar när man vänder den för den andra bilden. Motsvarar att bilden
+ * vrids ett halvt varv, vilket inte påverkar vilka sidor som syns.
+ */
+export function flipHexagon(hex: Hexagon): Hexagon {
+  return { C: hex.C, T: hex.B, TR: hex.BL, BR: hex.TL, B: hex.T, BL: hex.TR, TL: hex.BR };
+}
+
+/** Är linjerna från mitten ett upp-och-nervänt Y (T-hörnet ligger nedanför C)? */
+export function isFlipped(hex: Hexagon): boolean {
+  return hex.T.y > hex.C.y;
+}

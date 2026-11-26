@@ -56,6 +56,7 @@ export default function App() {
   const [error, setError] = useState<AppError | null>(null);
   const [scanning, setScanning] = useState(false);
   const [notice, setNotice] = useState(false);
+  const [uncertain, setUncertain] = useState<Set<number>>(new Set());
   const cube3d = useRef<Cube3DHandle>(null);
 
   useEffect(() => {
@@ -91,12 +92,14 @@ export default function App() {
     setCube(next);
     setError(null);
     setNotice(false);
+    setUncertain(new Set());
   };
 
-  const onScanned = (facelets: Facelets) => {
+  const onScanned = (facelets: Facelets, unsure: number[]) => {
     setScanning(false);
     setCube(facelets);
     setNotice(true);
+    setUncertain(new Set(unsure));
     const result = validate(facelets);
     setError(result.ok ? null : { kind: 'validation', error: result.error, stickers: result.stickers });
   };
@@ -106,6 +109,13 @@ export default function App() {
     setCube((prev) => {
       const next = [...prev];
       next[i] = brush;
+      return next;
+    });
+    // En ruta man själv har satt är inte längre osäker.
+    setUncertain((prev) => {
+      if (!prev.has(i)) return prev;
+      const next = new Set(prev);
+      next.delete(i);
       return next;
     });
     setError(null);
@@ -175,7 +185,12 @@ export default function App() {
               {t.scanButton}
             </button>
 
-            {notice && <div className="info-box">{t.scanDone}</div>}
+            {notice &&
+              (uncertain.size > 0 ? (
+                <div className="warn-box">{t.scanUncertain(uncertain.size)}</div>
+              ) : (
+                <div className="info-box">{t.scanDone}</div>
+              ))}
 
             <div className="palette" role="radiogroup" aria-label={t.pickColor}>
               {FACES.map((f) => (
@@ -196,7 +211,7 @@ export default function App() {
               ))}
             </div>
 
-            <NetEditor state={cube} highlight={highlight} onPaint={paint} />
+            <NetEditor state={cube} highlight={highlight} uncertain={uncertain} onPaint={paint} />
 
             {errorText && (
               <div className="error-box" role="alert">

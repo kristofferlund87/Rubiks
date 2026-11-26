@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Facelets } from '../cube/model';
 import { useI18n } from '../i18n';
-import { assemble } from '../scan/assemble';
+import { assemble, isUnreliable } from '../scan/assemble';
 import {
+  flipHexagon,
   gridLines,
   HEX_KEYS,
   regularHexagon,
@@ -12,7 +13,8 @@ import {
   type HexKey,
   type Point,
 } from '../scan/geometry';
-import { sampleHexagon, toImageData } from '../scan/sample';
+import { fitScore, photoIssues, sampleHexagon, toImageData } from '../scan/sample';
+import { PhotoIcon, ScanGuide } from './ScanGuide';
 
 interface Photo {
   data: ImageData;
@@ -21,7 +23,7 @@ interface Photo {
 }
 
 interface Props {
-  onDone(facelets: Facelets): void;
+  onDone(facelets: Facelets, uncertain: number[]): void;
   onCancel(): void;
 }
 
@@ -29,6 +31,15 @@ interface Props {
 const HEX_RADIUS = 0.36;
 
 const initialHex = (w: number, h: number) => regularHexagon(w / 2, h / 2, Math.min(w, h) * HEX_RADIUS);
+
+/**
+ * Välj åt vilket håll ramen ska vara (Y eller upp-och-nervänt Y) utifrån vilket
+ * som passar bilden bäst. Byter bara om det andra hållet är tydligt bättre.
+ */
+function bestOrientation(img: ImageData, hex: Hexagon): Hexagon {
+  const alt = flipHexagon(hex);
+  return fitScore(sampleHexagon(img, alt)) < 0.75 * fitScore(sampleHexagon(img, hex)) ? alt : hex;
+}
 
 /** Ramen: sexhörning med rutnät för de tre sidorna. */
 function HexOutline({ hex, stroke }: { hex: Hexagon; stroke: number }) {
@@ -47,7 +58,7 @@ export function Scanner({ onDone, onCancel }: Props) {
   const { t } = useI18n();
   const [photos, setPhotos] = useState<(Photo | null)[]>([null, null]);
   const [k, setK] = useState(0);
-  const [mode, setMode] = useState<'live' | 'adjust'>('live');
+  const [mode, setMode] = useState<'intro' | 'live' | 'adjust'>('intro');
   const [cameraError, setCameraError] = useState(false);
   const [scanError, setScanError] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -93,7 +104,7 @@ export function Scanner({ onDone, onCancel }: Props) {
     const s = Math.min(v.videoWidth, v.videoHeight);
     const crop = { x: (v.videoWidth - s) / 2, y: (v.videoHeight - s) / 2, w: s, h: s };
     const { data, url } = toImageData(v, v.videoWidth, v.videoHeight, crop);
-    setPhoto({ data, url, hex: initialHex(data.width, data.height) });
+    setPhoto({ data, url, hex: bestOrientation(data, initialHex(data.width, data.height)) });
   };
 
   const onFile = async (file: File | undefined) => {
@@ -101,7 +112,7 @@ export function Scanner({ onDone, onCancel }: Props) {
     const bitmap = await createImageBitmap(file);
     const { data, url } = toImageData(bitmap, bitmap.width, bitmap.height);
     bitmap.close();
-    setPhoto({ data, url, hex: initialHex(data.width, data.height) });
+    setPhoto({ data, url, hex: bestOrientation(data, initialHex(data.width, data.height)) });
   };
 
   const usePhoto = () => {
@@ -117,7 +128,7 @@ export function Scanner({ onDone, onCancel }: Props) {
       setScanError(true);
       return;
     }
-    onDone(result.facelets);
+    onDone(result.facelets, result.uncertain);
   };
 
   const fileInput = (
@@ -146,11 +157,20 @@ export function Scanner({ onDone, onCancel }: Props) {
           <button onClick={onCancel}>{t.cancel}</button>
         </div>
 
-        <p className="scanner-text">
-          {mode === 'live' ? (k === 0 ? t.scanInstr1 : t.scanInstr2) : t.adjustInstr}
-        </p>
+        {mode === 'live' && (
+          <div className="scanner-instr">
+            <PhotoIcon step={k as 0 | 1} />
+            <p className="scanner-text">{k === 0 ? t.scanInstr1 : t.scanInstr2}</p>
+            <button className="link" onClick={() => setMode('intro')}>
+              {t.showGuide}
+            </button>
+          </div>
+        )}
+        {mode === 'adjust' && <p className="scanner-text">{t.adjustInstr}</p>}
 
-        {mode === 'live' ? (
+        {mode === 'intro' ? (
+          <ScanGuide onStart={() => setMode('live')} onUpload={() => fileRef.current?.click()} />
+        ) : mode === 'live' ? (
           <>
             <div className="viewfinder">
               {cameraError ? (
@@ -176,9 +196,7 @@ export function Scanner({ onDone, onCancel }: Props) {
           <>
             <Adjuster
               photo={photo}
-              onChange={(hex) =>
-                setPhotos((prev) => prev.map((x, i) => (i === k && x ? { ...x, hex } : x)))
-              }
+              onChange={(hex) => setPhotos((prev) => prev.map((x, i) => (i === k && x ? { ...x, hex } : x)))}
             />
             {scanError && (
               <div className="error-box" role="alert">
@@ -214,11 +232,13 @@ export function Scanner({ onDone, onCancel }: Props) {
 function Adjuster({ photo, onChange }: { photo: Photo; onChange(hex: Hexagon): void }) {
   const { t } = useI18n();
   const { data, url, hex } = photo;
-  const W = data.width, H = data.height;
+  const W = data.width,
+    H = data.height;
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ key: HexKey | 'all'; start: Point; hex: Hexagon } | null>(null);
 
   const samples = useMemo(() => sampleHexagon(data, hex), [data, hex]);
+  const issues = useMemo(() => photoIssues(samples), [samples]);
   const points = useMemo(() => SLOTS.flatMap((s) => stickerPoints(hex, s)), [hex]);
   const unit = Math.min(W, H) / 100;
 
@@ -237,7 +257,8 @@ function Adjuster({ photo, onChange }: { photo: Photo; onChange(hex: Hexagon): v
     const d = drag.current;
     if (!d) return;
     const p = toSvg(e);
-    const dx = p.x - d.start.x, dy = p.y - d.start.y;
+    const dx = p.x - d.start.x,
+      dy = p.y - d.start.y;
     const clamp = (q: Point) => ({ x: Math.max(0, Math.min(W, q.x)), y: Math.max(0, Math.min(H, q.y)) });
     if (d.key === 'all') {
       const next = { ...d.hex };
@@ -248,43 +269,66 @@ function Adjuster({ photo, onChange }: { photo: Photo; onChange(hex: Hexagon): v
     }
   };
 
-  const outline = (['T', 'TR', 'BR', 'B', 'BL', 'TL'] as HexKey[]).map((key) => `${hex[key].x},${hex[key].y}`).join(' ');
+  const outline = (['T', 'TR', 'BR', 'B', 'BL', 'TL'] as HexKey[])
+    .map((key) => `${hex[key].x},${hex[key].y}`)
+    .join(' ');
 
   return (
-    <div
-      className="viewfinder adjust"
-      style={{ aspectRatio: `${W} / ${H}`, width: `min(100%, calc(62vh * ${W / H}))` }}
-    >
-      <img src={url} alt="" draggable={false} />
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${W} ${H}`}
-        className="overlay interactive"
-        onPointerMove={onMove}
-        onPointerUp={() => (drag.current = null)}
-        onPointerCancel={() => (drag.current = null)}
+    <>
+      <div
+        className="viewfinder adjust"
+        style={{ aspectRatio: `${W} / ${H}`, width: `min(100%, calc(62vh * ${W / H}))` }}
       >
-        <polygon points={outline} className="hex-fill" onPointerDown={onDown('all')} />
-        <HexOutline hex={hex} stroke={unit * 0.4} />
-        {points.map((p, i) => (
-          <circle
-            key={i}
-            cx={p.x}
-            cy={p.y}
-            r={unit * 1.6}
-            fill={`rgb(${samples[i].map(Math.round).join(',')})`}
-            className="sample"
-            strokeWidth={unit * 0.35}
-          />
-        ))}
-        {HEX_KEYS.map((key) => (
-          <g key={key} className="handle" onPointerDown={onDown(key)}>
-            <circle cx={hex[key].x} cy={hex[key].y} r={unit * 6} className="handle-hit" />
-            <circle cx={hex[key].x} cy={hex[key].y} r={unit * 2.2} className="handle-dot" strokeWidth={unit * 0.5} />
-          </g>
-        ))}
-      </svg>
-      <span className="sr-only">{t.adjustInstr}</span>
-    </div>
+        <img src={url} alt="" draggable={false} />
+        <svg
+          ref={svgRef}
+          viewBox={`0 0 ${W} ${H}`}
+          className="overlay interactive"
+          onPointerMove={onMove}
+          onPointerUp={() => {
+            if (drag.current) onChange(bestOrientation(data, hex));
+            drag.current = null;
+          }}
+          onPointerCancel={() => (drag.current = null)}
+        >
+          <polygon points={outline} className="hex-fill" onPointerDown={onDown('all')} />
+          <HexOutline hex={hex} stroke={unit * 0.4} />
+          {points.map((p, i) => (
+            <circle
+              key={i}
+              cx={p.x}
+              cy={p.y}
+              r={unit * 1.6}
+              fill={`rgb(${samples[i].rgb.map(Math.round).join(',')})`}
+              className={'sample' + (isUnreliable(samples[i]) ? ' noisy' : '')}
+              strokeWidth={unit * 0.35}
+            />
+          ))}
+          {HEX_KEYS.map((key) => (
+            <g key={key} className="handle" onPointerDown={onDown(key)}>
+              <circle cx={hex[key].x} cy={hex[key].y} r={unit * 6} className="handle-hit" />
+              <circle
+                cx={hex[key].x}
+                cy={hex[key].y}
+                r={unit * 2.2}
+                className="handle-dot"
+                strokeWidth={unit * 0.5}
+              />
+            </g>
+          ))}
+        </svg>
+        <span className="sr-only">{t.adjustInstr}</span>
+      </div>
+      <button className="flip-button" onClick={() => onChange(flipHexagon(hex))}>
+        {t.flipOutline}
+      </button>
+      {issues.length > 0 && (
+        <div className="warn-box" role="status">
+          {issues.map((issue) => (
+            <p key={issue}>{t.photoIssue[issue]}</p>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

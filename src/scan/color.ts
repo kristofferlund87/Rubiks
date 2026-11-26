@@ -1,42 +1,47 @@
-/** Färghantering för avläsning: RGB -> Lab och avstånd. */
+/**
+ * Färghantering för avläsning.
+ *
+ * Färgerna jämförs i ett "kulörplan" i stället för på ljusstyrka: skuggor och
+ * mörka eller ljusa bilder ändrar mest ljusstyrkan, medan kulören (röd, gul,
+ * blå …) och mättnaden (hur färgstark den är) är mycket stabilare. Vitt har låg
+ * mättnad och hamnar nära mitten, färgerna runt om efter kulör.
+ */
 import type { Face } from '../cube/model';
 
 export type RGB = [number, number, number];
-export type Lab = [number, number, number];
+/** [mättnad·cos(kulör), mättnad·sin(kulör), viktad ljusstyrka] */
+export type Feature = [number, number, number];
 
-function srgbToLinear(c: number): number {
-  const v = c / 255;
-  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+/** Hur mycket ljusstyrkan väger. Lite, men nog för att skilja mörka fall åt. */
+const VALUE_WEIGHT = 0.2;
+
+export function rgbToFeature([r, g, b]: RGB): Feature {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const v = max / 255;
+  const s = max > 0 ? (max - min) / max : 0;
+  let h = 0;
+  if (max !== min) {
+    const d = max - min;
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= Math.PI / 3;
+  }
+  return [s * Math.cos(h), s * Math.sin(h), VALUE_WEIGHT * v];
 }
 
-export function rgbToLab([r8, g8, b8]: RGB): Lab {
-  const r = srgbToLinear(r8), g = srgbToLinear(g8), b = srgbToLinear(b8);
-  // D65
-  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
-  const y = r * 0.2126 + g * 0.7152 + b * 0.0722;
-  const z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
-  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
-  const fx = f(x), fy = f(y), fz = f(z);
-  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
-}
-
-/**
- * Avstånd mellan två färger. Ljusheten (L) väger mindre eftersom den varierar
- * mycket med belysning och skuggor, medan själva färgtonen är stabilare.
- */
-export function labDistance(a: Lab, b: Lab): number {
-  const dl = (a[0] - b[0]) * 0.5;
-  return Math.hypot(dl, a[1] - b[1], a[2] - b[2]);
+export function featureDistance(a: Feature, b: Feature): number {
+  return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 }
 
 /** Typiska färger på en kub (standardfärgschema: vit upp, grön fram). */
-export const NOMINAL: Record<Face, Lab> = {
-  U: rgbToLab([235, 235, 235]), // vit
-  R: rgbToLab([200, 20, 40]), // röd
-  F: rgbToLab([0, 160, 80]), // grön
-  D: rgbToLab([250, 215, 0]), // gul
-  L: rgbToLab([255, 110, 0]), // orange
-  B: rgbToLab([0, 80, 200]), // blå
+export const NOMINAL: Record<Face, Feature> = {
+  U: rgbToFeature([225, 220, 210]), // vit
+  R: rgbToFeature([200, 25, 20]), // röd
+  F: rgbToFeature([20, 160, 60]), // grön
+  D: rgbToFeature([230, 205, 0]), // gul
+  L: rgbToFeature([250, 115, 0]), // orange
+  B: rgbToFeature([20, 60, 180]), // blå
 };
 
 /** Alla permutationer av en lista (6! = 720 för sidorna). */

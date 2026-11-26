@@ -218,7 +218,7 @@ main {
     'l f r b'
     '. d . .';
   gap: 5px;
-  touch-action: none;
+  touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -517,4 +517,154 @@ main {
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+/* Osäkerhet och varningar */
+.warn-box {
+  background: #3a2e12;
+  border: 1px solid #7a5d1c;
+  color: #ffe3a3;
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+}
+.warn-box p {
+  margin: 0;
+}
+.warn-box p + p {
+  margin-top: 0.4rem;
+}
+.net-cell {
+  position: relative;
+}
+.net-cell.uncertain {
+  outline: 2px dashed #ffc23d;
+  outline-offset: 1px;
+}
+.net-cell.uncertain::after {
+  content: '?';
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: clamp(0.7rem, 3vw, 1rem);
+  color: #111;
+  text-shadow: 0 0 3px rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+.sample.noisy {
+  stroke: #ff3b3b;
+}
+
+/* Skanningsguide */
+.guide {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.guide h3 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.guide-intro {
+  margin: 0;
+  color: var(--muted);
+}
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.guide-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.guide-step p {
+  margin: 0;
+  color: var(--muted);
+}
+.guide-step strong {
+  color: var(--text);
+}
+.guide-step .cube-icon {
+  flex: none;
+  width: 92px;
+  height: 92px;
+}
+.guide-turn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 34px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.guide-turn span {
+  font-size: 1.3rem;
+  color: var(--accent);
+}
+.guide-corner-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.dot-red {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff4d4d;
+  border: 2px solid #fff;
+  vertical-align: middle;
+}
+.guide-tips {
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.cube-icon-grid line {
+  stroke: rgba(10, 12, 16, 0.55);
+  stroke-width: 0.8;
+}
+.cube-icon-label {
+  font: 700 13px system-ui, sans-serif;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.35);
+  stroke-width: 2px;
+}
+.cube-icon-corner {
+  fill: #ff4d4d;
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+.scanner-instr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.scanner-instr .cube-icon {
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+.scanner-instr .scanner-text {
+  flex: 1;
+}
+button.link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  padding: 0.4rem;
+  text-decoration: underline;
+  flex: none;
+}
+.flip-button {
+  align-self: center;
 }
