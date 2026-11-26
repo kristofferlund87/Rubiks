@@ -169,4 +169,20 @@ describe('avläsning', () => {
       for (const w of wrong) expect(glare).toContain(w);
     }
   });
+
+  it('vitbalans: klarar olika färgstick i de två bilderna', () => {
+    const rand = seeded(21);
+    let correct = 0;
+    for (let n = 0; n < 20; n++) {
+      const state = applyMoves(SOLVED, randomScramble(25, rand));
+      const warm: RGB = [1.15, 0.95, 0.6];
+      const cool: RGB = [0.75, 0.95, 1.25];
+      const result = assemble(
+        photograph(state, ['U', 'F', 'R'], rand, warm),
+        photograph(state, ['D', 'L', 'B'], rand, cool),
+      );
+      if (result.ok && result.facelets.every((f, i) => f === state[i])) correct++;
+    }
+    expect(correct).toBeGreaterThanOrEqual(18);
+  });
 });

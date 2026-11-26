@@ -27,6 +27,7 @@ const en = {
   adjustInstr:
     'Drag the blue dots to the corners of the cube so the lines follow its edges. The colored dots should land in the middle of each square.',
   flipOutline: '⇅ Flip outline',
+  savePhoto: '💾 Save photo',
   guideTitle: 'How to scan your cube',
   guideIntro: 'You take 2 photos – each one shows 3 faces, so together they show all 6.',
   guideStep1: (
@@ -185,6 +186,7 @@ const sv: Strings = {
   adjustInstr:
     'Dra de blå prickarna till kubens hörn så att linjerna följer kanterna. De färgade prickarna ska hamna mitt i varje ruta.',
   flipOutline: '⇅ Vänd ramen',
+  savePhoto: '💾 Spara bild',
   guideTitle: 'Så skannar du kuben',
   guideIntro: 'Du tar 2 bilder – var och en visar 3 sidor, så tillsammans syns alla 6.',
   guideStep1: (
